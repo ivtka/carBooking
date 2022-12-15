@@ -1,5 +1,6 @@
 package org.jadatix.carbooking.api.v1.users;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.jadatix.carbooking.api.v1.controller.AbstractController;
 import org.jadatix.carbooking.api.v1.request.UserRequest;
 import org.jadatix.carbooking.api.v1.response.UserResponse;
@@ -12,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("api/v1/users")
+@Tag(name = "Users", description = "The Users API")
 public class UserController extends AbstractController<User, UserRequest, UserResponse> {
     @Autowired
     private UserService userService;
