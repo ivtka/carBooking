@@ -1,18 +1,25 @@
 package org.jadatix.carbooking.api.v1.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.jadatix.carbooking.model.Role;
 import org.jadatix.carbooking.model.User;
 
 import java.time.LocalDate;
 
 public class UserRequest extends AbstractRequest<User> {
-
+    @Schema(description = "User id", example = "1")
     private Long id;
+    @Schema(description = "User role", example = "USER")
     private Role role;
+    @Schema(description = "User passport", example = "ABC-DEF")
     private String passport;
+    @Schema(description = "User full name", example = "John Doe")
     private String fullName;
+    @Schema(description = "User email", example = "example@email.com", pattern = "^[A-Za-z0-9+_.-]+@(.+)$")
     private String email;
+    @Schema(description = "User password", example = "password")
     private String secret;
+    @Schema(description = "User birth date", example = "2000-01-01", format = "date", type = "string")
     private LocalDate birthday;
 
     public UserRequest() {
