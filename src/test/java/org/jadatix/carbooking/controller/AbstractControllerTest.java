@@ -2,21 +2,26 @@ package org.jadatix.carbooking.controller;
 
 import org.jadatix.carbooking.api.v1.request.AbstractRequest;
 import org.jadatix.carbooking.api.v1.response.AbstractResponse;
-import org.jadatix.carbooking.config.BasicAuthWebSecurityConfiguration;
-import org.jadatix.carbooking.config.BasicDummySecurityConfiguration;
+import org.jadatix.carbooking.api.v1.response.PageResponse;
 import org.jadatix.carbooking.exception.NotFoundException;
 import org.jadatix.carbooking.model.IdentifierEntity;
 import org.jadatix.carbooking.service.AbstractService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.OngoingStubbing;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -121,9 +126,81 @@ public abstract class AbstractControllerTest<Entity extends IdentifierEntity,
                 .andExpect(status().isNotFound());
     }
 
-    // TODO: write
-    // TODO: write test for get all with pageable after finish pageable for findAll
-    // TODO: write test for get all with sorting after finish sort for findAll
+    @Test
+    public void testFindAll() throws Exception {
+        List<Entity> entities = new LinkedList<>(Arrays.asList(getNewEntity(), getNewEntity()));
+
+        Page<Entity> page = mockPage(entities);
+
+        when(getService().get(any(Pageable.class))).thenReturn(page);
+
+        List<Response> expectedResponses = entities.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        PageResponse<Response> expectedPageResponse = new PageResponse<>(expectedResponses,
+                page.getTotalElements(), page.getNumber(), page.getSize());
+
+        mvc.perform(get(getControllerPath())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json(getJson(expectedPageResponse)));
+    }
+
+    @Test
+    public void testDefaultPageValuesForFindAll() throws Exception {
+        List<Entity> entities = new LinkedList<>(Arrays.asList(getNewEntity(), getNewEntity()));
+
+        Page<Entity> page = getMockedServicePage();
+
+        when(getService().get(any(Pageable.class))).thenReturn(page);
+
+        mvc.perform(get(getControllerPath())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .param("index", "0"))
+                .andExpect(status().isOk());
+
+        Pageable lastPageRequest = getLastPageRequest();
+
+        assertEquals(10, lastPageRequest.getPageSize());
+    }
+
+    @Test
+    public void testCustomPageValuesForFindAll() throws Exception {
+        Page<Entity> page = getMockedServicePage();
+
+        when(getService().get(any(Pageable.class))).thenReturn(page);
+
+        mvc.perform(get(getControllerPath())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .param("index", "50")
+                        .param("size", "100"))
+                .andExpect(status().isOk());
+
+        Pageable lastPageRequest = getLastPageRequest();
+        assertEquals(50, lastPageRequest.getPageNumber());
+        assertEquals(100, lastPageRequest.getPageSize());
+    }
+
+    @Test
+    public void testSortForFindAll() {
+        Page<Entity> page = getMockedServicePage();
+
+        when(getService().get(any(Pageable.class))).thenReturn(page);
+
+        Map<List<String>, Sort> sortingTestParameters = getSortingTestParameters();
+        sortingTestParameters.forEach(this::doSortingTest);
+    }
+
+    protected void doSortingTest(List<String> sortingValues, Sort expectedResult) {
+        MockHttpServletRequestBuilder mockHttpServletRequestBuilder = get(getControllerPath());
+        sortingValues.forEach(sortingValue -> mockHttpServletRequestBuilder.param("sort", sortingValue));
+        try {
+            mvc.perform(mockHttpServletRequestBuilder).andExpect(status().isOk());
+        } catch (Exception e) {
+            // pass
+        }
+    }
 
     @Test
     public void testDeleteItem() throws Exception {
@@ -172,6 +249,23 @@ public abstract class AbstractControllerTest<Entity extends IdentifierEntity,
         when(getService().get(entity.getId())).thenReturn(entity);
     }
 
+    private Page<Entity> getMockedServicePage() {
+        return mockPage(new ArrayList<>());
+    }
+
+    protected Page<Entity> mockPage(List<Entity> entities) {
+        Page<Entity> page = mock(Page.class);
+        when(page.getContent()).thenReturn(entities);
+        when(page.getTotalElements()).thenReturn((long) entities.size());
+        when(page.getNumber()).thenReturn(1);
+        when(page.getSize()).thenReturn(15);
+        when(page.iterator()).thenReturn(entities.iterator());
+
+        when(getService().get(any(Pageable.class))).thenReturn(page);
+
+        return page;
+    }
+
     protected OngoingStubbing<Entity> whenCreateInService(Entity entity) {
         return when(getService().create(entity));
     }
@@ -184,6 +278,12 @@ public abstract class AbstractControllerTest<Entity extends IdentifierEntity,
         return ThreadLocalRandom.current().nextLong(Long.MAX_VALUE - 1);
     }
 
+    protected Pageable getLastPageRequest() {
+        ArgumentCaptor<Pageable> argumentCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(getService(), atLeastOnce()).get(argumentCaptor.capture());
+        return argumentCaptor.getValue();
+    }
+
     protected abstract String getControllerPath();
 
     protected abstract Class<Entity> getEntityClass();
@@ -191,6 +291,8 @@ public abstract class AbstractControllerTest<Entity extends IdentifierEntity,
     protected abstract AbstractService<Entity> getService();
 
     protected abstract List<Function<Entity, Object>> getValueToBeUpdated(Request request);
+
+    protected abstract Map<List<String>, Sort> getSortingTestParameters();
 
     protected abstract Entity getNewEntity();
 

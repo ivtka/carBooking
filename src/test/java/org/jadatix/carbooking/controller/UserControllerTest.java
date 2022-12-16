@@ -8,8 +8,10 @@ import org.jadatix.carbooking.service.UserService;
 import org.junit.jupiter.api.Disabled;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 @WebMvcTest
@@ -36,6 +38,18 @@ public class UserControllerTest extends AbstractControllerTest<User, UserRequest
     protected List<Function<User, Object>> getValueToBeUpdated(UserRequest request) {
         return List.of(User::getRole, User::getPassport, User::getFullName,
                 User::getEmail, User::getSecret, User::getBirthday);
+    }
+
+    @Override
+    protected Map<List<String>, Sort> getSortingTestParameters() {
+        return Map.of(
+                List.of("fullName"), Sort.by("fullName").ascending(),
+                List.of("fullName,desc"), Sort.by("fullName").descending(),
+                List.of("email"), Sort.by("email").ascending(),
+                List.of("email,desc"), Sort.by("email").descending(),
+                List.of("birthday"), Sort.by("birthday").ascending(),
+                List.of("birthday,desc"), Sort.by("birthday").descending()
+        );
     }
 
     @Override

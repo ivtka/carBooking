@@ -4,6 +4,8 @@ import org.jadatix.carbooking.exception.AccessDeniedException;
 import org.jadatix.carbooking.exception.NotFoundException;
 import org.jadatix.carbooking.model.IdentifierEntity;
 import org.jadatix.carbooking.repository.SpecificationRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +23,11 @@ abstract class AbstractDao<T extends IdentifierEntity> implements Dao<T> {
     }
 
     @Override
+    public Page<T> get(Pageable pageable) {
+        return getRepository().findAll(pageable);
+    }
+
+    @Override
     public List<T> getAll() {
         return getRepository().findAll(getForReadOnly());
     }
@@ -35,7 +42,8 @@ abstract class AbstractDao<T extends IdentifierEntity> implements Dao<T> {
 
     @Override
     public T update(T t) {
-        Optional<T> found = getRepository().findOne(getEqualSpecification("id", t.getId()).and(getForModify(t.getId())));
+        Optional<T> found = getRepository()
+                .findOne(getEqualSpecification("id", t.getId()).and(getForModify(t.getId())));
         if (found.isEmpty()) {
             throw new NotFoundException("Not found with id " + t.getId());
         }
